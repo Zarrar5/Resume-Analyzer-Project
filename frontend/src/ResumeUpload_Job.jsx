@@ -64,7 +64,7 @@ const ResumeUpload = () => {
     try{
       if (resumeCheck){
         const formData= new FormData();
-        formData.append('resumeFile', resumeFile);
+        formData.append('resume_file', resumeFile);
 
         const response = await fetch('http://127.0.0.1:8000/api/resume-upload', {
           method: 'POST',
@@ -73,7 +73,7 @@ const ResumeUpload = () => {
 
         if(response.ok){
           const data= await response.json();
-          setMessage('Resume Succesfully Sent ', data);
+          setMessage(data.message);
         }
         else{
           const errorData = await response.json();
@@ -90,22 +90,20 @@ const ResumeUpload = () => {
   };
 
   const handleJobDescription= async (event) =>{
-    event.preventdefault();
+    event.preventDefault();
 
     try{
       const response = await fetch('http://127.0.0.1:8000/api/job-description', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: new URLSearchParams({
-          jobDescription,
-        }),
+        body: JSON.stringify({ job_description: jobDescription }),
       });
 
       if(response.ok){
         const data= await response.json();
-        setMessage('Job Description Succesfully Sent');
+        setMessage(data.message);
       }
       else{
         const errorData = await response.json();
@@ -125,7 +123,6 @@ const ResumeUpload = () => {
       {resumeFile ? (
         <Document file={resumeFile?  URL.createObjectURL(resumeFile): null}
           onLoadSuccess={() => setMessage('PDF loaded successfully')}
-          onLoadError={(error) => setMessage('Failed to load PDF')}
         >
           <Page pageNumber={1} />
         </Document>

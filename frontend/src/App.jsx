@@ -57,10 +57,10 @@ function App() {
           <Route path="/login" element={<Login onLoginSuccess={() => setIsLoggedIn(true)}/>} />
           <Route path="/register" element={<Register />} />
           {isLoggedIn && <Route path="/resume-upload" element={<ResumeUpload/>} />}
-          <Route
+          {/* <Route
             path="*"
             element={<Navigate to="/" />}
-          />
+          /> */}
           <Route path="/dashboard" element={<Dashboard />} />
         </Routes>
       </div>
