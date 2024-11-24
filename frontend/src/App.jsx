@@ -3,7 +3,8 @@ import Login from './Login';
 import Register from './Register';
 import ResumeUpload from './ResumeUpload';
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import Dashboard from './Dashboard';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 
 function App() {
   //Track whether the user is logged in
@@ -35,6 +36,9 @@ function App() {
                 <li>
                   <Link to="/resume-upload">Resume Upload</Link>
                 </li>
+                <li>
+                  <Link to="/dashboard">Dashboard</Link>
+                </li>
               </>
             ) : (
               <>
@@ -57,6 +61,7 @@ function App() {
             path="*"
             element={<Navigate to="/" />}
           />
+          <Route path="/dashboard" element={<Dashboard />} />
         </Routes>
       </div>
     </BrowserRouter>
