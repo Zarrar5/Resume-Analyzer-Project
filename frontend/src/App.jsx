@@ -2,9 +2,9 @@ import React from 'react';
 import Login from './Login';
 import Register from './Register';
 import ResumeUpload from './ResumeUpload';
-import { useState, useEffect } from 'react';
 import Dashboard from './Dashboard';
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 function App() {
   //Track whether the user is logged in
