@@ -1,89 +1,128 @@
-from fastapi import FastAPI, HTTPException, Depends, status, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, HTTPException, Depends, status, Form, File, UploadFile, Request
+from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr
-from typing import Optional
 from passlib.context import CryptContext
+from typing import Optional, Dict
 import jwt
 from datetime import datetime, timedelta, timezone
-from fastapi.templating import Jinja2Templates
-from typing import Dict
-from fastapi.middleware.cors import CORSMiddleware
+
+# Initialize app
 app = FastAPI()
 
+# CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  
+    allow_origins=["http://localhost:5174"],  # Update with your frontend's URL
     allow_credentials=True,
-    allow_methods=["*"],  
-    allow_headers=["*"], 
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
+
+# Constants for Task 8
+ALLOWED_EXTENSIONS = {"pdf", "docx"}
+MAX_FILE_SIZE = 2 * 1024 * 1024  # 2MB
+
+# User Database (In-Memory)
 userDB: Dict[str, Dict] = {}
 
-templates = Jinja2Templates(directory="../frontend")
-
+# JWT Configuration
 SECRET_KEY = "bdd31c34fb1bb2bb93979bd30e7d628a8b18506aca574bad0266b2c0c608b57b"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
+# Password Hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-#verfing password
+
+# Helper Functions
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
-#hash password
 def get_password_hash(password):
     return pwd_context.hash(password)
 
-#create access token
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire =datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-#Registeration form
-# @app.get("/api/register", response_class=HTMLResponse)
-# async def register_form(request: Request):
-#     return templates.TemplateResponse("register.html", {"request": request})
 
-#Register Backend
+# User Registration
 @app.post("/api/register", status_code=status.HTTP_201_CREATED)
-async def register_user(username: str = Form(...), email: str = Form(...), password: str = Form(...)):
+async def register_user(username: str = Form(...), email: EmailStr = Form(...), password: str = Form(...)):
     if username in userDB:
         raise HTTPException(status_code=400, detail="Username already registered")
-    
+
     hashed_password = get_password_hash(password)
-    userDB[username]={
+    userDB[username] = {
         "email": email,
         "password": hashed_password
     }
-    
-    return {"message": "User registered"}
+
+    return {"message": "User registered successfully."}
 
 
-#Login form
-# @app.get("/api/login", response_class=HTMLResponse)
-# async def login_form(request: Request):
-#     return templates.TemplateResponse("login.html", {"request": request})
-
-
+# User Login
 @app.post("/api/login")
 async def login_user(username: str = Form(...), password: str = Form(...)):
-    db_user= userDB.get(username)
+    db_user = userDB.get(username)
 
     if not db_user or not verify_password(password, db_user['password']):
-        raise HTTPException(status_code=400, detail="Invalid email or password")
-    
+        raise HTTPException(status_code=400, detail="Invalid username or password")
+
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(data={"sub": db_user}, expires_delta=access_token_expires)
-    
+    access_token = create_access_token(data={"sub": username}, expires_delta=access_token_expires)
+
     return {"token": access_token}
 
-@app.post("/api/resume-upload")
-async def analyze_resume(resumeFile: str= Form(...)):
-    return {"resume": resumeFile}
+
+# Task 8: Resume Upload Endpoint
+@app.post("/api/resume-upload", status_code=status.HTTP_200_OK)
+async def resume_upload(resume_file: UploadFile = File(...)):
+    # Validate file type
+    if '.' not in resume_file.filename or resume_file.filename.rsplit('.', 1)[1].lower() not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. Only PDF or DOCX files are allowed."
+        )
+
+    # Validate file size
+    content = await resume_file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail="File size exceeds the 2MB limit."
+        )
+
+    return {
+        "message": "Resume uploaded successfully.",
+        "status": "success"
+    }
+
+
+# Task 8: Job Description Submission Endpoint
+class JobDescription(BaseModel):
+    job_description: str
+
+
+@app.post("/api/job-description", status_code=status.HTTP_200_OK)
+async def job_description(data: JobDescription):
+    job_description = data.job_description.strip()
+
+    # Validate character count
+    if len(job_description) > 5000:
+        raise HTTPException(
+            status_code=400,
+            detail="Job description exceeds character limit of 5,000 characters."
+        )
+
+    return {
+        "message": "Job description submitted successfully.",
+        "status": "success"
+    }
