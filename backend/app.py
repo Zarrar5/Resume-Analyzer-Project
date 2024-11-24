@@ -46,15 +46,10 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
-
-@app.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse("home.html", {"request": request})
-
 #Registeration form
-@app.get("/api/register", response_class=HTMLResponse)
-async def register_form(request: Request):
-    return templates.TemplateResponse("register.html", {"request": request})
+# @app.get("/api/register", response_class=HTMLResponse)
+# async def register_form(request: Request):
+#     return templates.TemplateResponse("register.html", {"request": request})
 
 #Register Backend
 @app.post("/api/register", status_code=status.HTTP_201_CREATED)
@@ -72,9 +67,9 @@ async def register_user(username: str = Form(...), email: str = Form(...), passw
 
 
 #Login form
-@app.get("/api/login", response_class=HTMLResponse)
-async def login_form(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+# @app.get("/api/login", response_class=HTMLResponse)
+# async def login_form(request: Request):
+#     return templates.TemplateResponse("login.html", {"request": request})
 
 
 @app.post("/api/login")
@@ -88,3 +83,7 @@ async def login_user(username: str = Form(...), password: str = Form(...)):
     access_token = create_access_token(data={"sub": db_user}, expires_delta=access_token_expires)
     
     return {"token": access_token}
+
+@app.post("/api/resume-upload")
+async def analyze_resume(resumeFile: str= Form(...)):
+    return {"resume": resumeFile}
