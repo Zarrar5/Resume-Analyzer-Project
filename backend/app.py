@@ -6,9 +6,20 @@ from passlib.context import CryptContext
 from typing import Optional, Dict
 import jwt
 from datetime import datetime, timedelta, timezone
+from PyPDF2 import PdfReader
+
 
 # Initialize app
 app = FastAPI()
+
+#Task 11 function declaration: use Python PdfReader function to 
+def extract_text_from_pdf(file):
+    reader = PdfReader(file)
+    text = ""
+    for page in reader.pages: #iterate through pages 
+        text += page.extract_text() #add extracted text from built in function 
+    return text.strip()
+
 
 # CORS Configuration
 app.add_middleware(
@@ -126,3 +137,30 @@ async def job_description(data: JobDescription):
         "message": "Job description submitted successfully.",
         "status": "success"
     }
+
+
+# Task 11: Resume Upload Endpoint with text extraction from PDF
+@app.post("/api/resume-upload", status_code=status.HTTP_200_OK)
+async def resume_upload(resume_file: UploadFile = File(...)):
+    # Validate file type
+    if '.' not in resume_file.filename or resume_file.filename.rsplit('.', 1)[1].lower() not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. Only PDFs allowed."
+        )
+
+    # Validate file size <=2MB
+    content = await resume_file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail="File size exceeds 2MB limit."
+        )
+
+    # Extract text from PDF if it's a PDF file
+    if resume_file.filename.endswith(".pdf"):
+        text = extract_text_from_pdf(content)
+        # Process or store the text as needed
+        return {"message": "Resume uploaded successfully.", "extracted_text": text, "status": "success"}
+
+    return {"message": "Resume uploaded successfully.", "status": "success"}
