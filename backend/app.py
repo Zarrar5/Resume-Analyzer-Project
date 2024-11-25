@@ -7,6 +7,8 @@ from typing import Optional, Dict
 import jwt
 from datetime import datetime, timedelta, timezone
 import bcrypt
+from PyPDF2 import PdfReader
+import fitz
 
 # Initialize app
 app = FastAPI()
@@ -100,10 +102,28 @@ async def resume_upload(resume_file: UploadFile = File(...)):
             status_code=400,
             detail="File size exceeds the 2MB limit."
         )
+    
+     # Decode file content if it's text-based
+    try:
+        # Open the PDF file from in-memory content
+        pdf_document = fitz.open(stream=content, filetype="pdf")
 
+        # Extract text from all pages
+        pdf_text = ""
+        for page_num in range(pdf_document.page_count):
+            page = pdf_document.load_page(page_num)
+            pdf_text += page.get_text()
+
+        if not pdf_text.strip():
+            raise HTTPException(status_code=400, detail="PDF contains no extractable text.")
+    
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error reading PDF file: {str(e)}")
+    
     return {
         "message": "Resume uploaded successfully.",
-        "status": "success"
+        "status": "success",
+        "content": pdf_text
     }
 
 
