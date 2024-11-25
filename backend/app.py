@@ -1,19 +1,22 @@
 from fastapi import FastAPI, HTTPException, Depends, status, Form, File, UploadFile, Request
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr
 from passlib.context import CryptContext
 from typing import Optional, Dict
 import jwt
+import bcrypt
+from PyPDF2 import PdfReader
 from datetime import datetime, timedelta, timezone
+import fitz
 
 # Initialize app
 app = FastAPI()
-
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5174"],  # Update with your frontend's URL
+    allow_origins=["http://localhost:5173"],  # Update with your frontend's URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -91,7 +94,6 @@ async def resume_upload(resume_file: UploadFile = File(...)):
             status_code=400,
             detail="Invalid file type. Only PDF or DOCX files are allowed."
         )
-
     # Validate file size
     content = await resume_file.read()
     if len(content) > MAX_FILE_SIZE:
@@ -100,9 +102,28 @@ async def resume_upload(resume_file: UploadFile = File(...)):
             detail="File size exceeds the 2MB limit."
         )
 
+
+     # Decode file content if it's text-based
+    try:
+        # Open the PDF file from in-memory content
+        pdf_document = fitz.open(stream=content, filetype="pdf")
+
+        # Extract text from all pages
+        pdf_text = ""
+        for page_num in range(pdf_document.page_count):
+            page = pdf_document.load_page(page_num)
+            pdf_text += page.get_text()
+
+        if not pdf_text.strip():
+            raise HTTPException(status_code=400, detail="PDF contains no extractable text.")
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error reading PDF file: {str(e)}")
+
     return {
         "message": "Resume uploaded successfully.",
-        "status": "success"
+        "status": "success",
+        "content": pdf_text
     }
 
 
@@ -126,3 +147,38 @@ async def job_description(data: JobDescription):
         "message": "Job description submitted successfully.",
         "status": "success"
     }
+
+
+#Task 11 function declaration: use Python PdfReader function to 
+def extract_text_from_pdf(file):
+    reader = PdfReader(file)
+    text = ""
+    for page in reader.pages: #iterate through pages 
+        text += page.extract_text() #add extracted text from built in function 
+    return text.strip()
+
+# Task 11: Resume Upload Endpoint with text extraction from PDF
+@app.post("/api/resume-upload", status_code=status.HTTP_200_OK)
+async def resume_upload(resume_file: UploadFile = File(...)):
+    # Validate file type
+    if '.' not in resume_file.filename or resume_file.filename.rsplit('.', 1)[1].lower() not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. Only PDFs allowed."
+        )
+
+    # Validate file size <=2MB
+    content = await resume_file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail="File size exceeds 2MB limit."
+        )
+
+    # Extract text from PDF if it's a PDF file
+    if resume_file.filename.endswith(".pdf"):
+        text = extract_text_from_pdf(content)
+        # Process or store the text as needed
+        return {"message": "Resume uploaded successfully.", "extracted_text": text, "status": "success"}
+
+    return {"message": "Resume uploaded successfully.", "status": "success"}
