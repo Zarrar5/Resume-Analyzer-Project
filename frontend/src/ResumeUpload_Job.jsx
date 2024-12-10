@@ -8,7 +8,8 @@ const ResumeUpload = () => {
   const [jobDescription, setJobDescription] = useState('');
   const [message, setMessage] = useState('');
   const [resumeCheck, setResumeCheck]= useState(false);
-
+  const [preview, setPreview]= useState(true);
+  const [loading, setLoading] = useState(false);  
 
   const handleFileChange = (event) => {
     const file = event.target.files[0];
@@ -24,6 +25,7 @@ const ResumeUpload = () => {
         else{
           setResumeCheck(true);
           setResumeFile(file);
+          setPreview(true);
           setMessage('');
         }
     } 
@@ -59,36 +61,36 @@ const ResumeUpload = () => {
     setJobDescription('');
   };
 
-  const handleResumeCheck = async (event) =>{
+  const handleResumeCheck = async (event) => {
     event.preventDefault();
+    setLoading(true); // Set loading to true at the start
+    try {
+        if (resumeCheck) {
+            const formData = new FormData();
+            formData.append('resume_file', resumeFile);
 
-    try{
-      if (resumeCheck){
-        const formData= new FormData();
-        formData.append('resume_file', resumeFile);
+            const response = await fetch('http://127.0.0.1:8000/api/resume-upload', {
+                method: 'POST',
+                body: formData,
+            });
 
-        const response = await fetch('http://127.0.0.1:8000/api/resume-upload', {
-          method: 'POST',
-          body: formData,
-        });
-
-        if(response.ok){
-          const data= await response.json();
-          setMessage(data.content);
+            if (response.ok) {
+                const data = await response.json();
+                setPreview(false);
+                setMessage('Uploaded Successfully');
+            } else {
+                const errorData = await response.json();
+                setMessage(errorData.detail || 'Failed to send data');
+            }
+        } else {
+            throw new Error("Invalid File");
         }
-        else{
-          const errorData = await response.json();
-          setMessage(errorData.detail || 'Failed to send data');
-        }
-      }
-      else{
-        throw new Error("Invalid File");
-      }
+    } catch (error) {
+        setMessage('An error occurred: ' + error.message);
+    } finally {
+        setLoading(false); // Ensure loading is set to false when the operation finishes
     }
-    catch (error){
-      setMessage('An error occurred: '+ error.message);
-    }
-  };
+};
 
   const handleJobDescription= async (event) =>{
     event.preventDefault();
@@ -118,6 +120,7 @@ const ResumeUpload = () => {
 
   return (
     <div>
+      {loading && <LoadingSpinner/>} 
       <form onSubmit={handleResumeCheck}>
       <h2>Resume Upload</h2>
       <input type="file" 
@@ -127,7 +130,7 @@ const ResumeUpload = () => {
 
       <button type="submit">Submit Resume</button>
       </form>
-      {resumeFile && (
+      {resumeFile && preview && (
           <div>
               <h3>PDF Preview:</h3>
               <Document
@@ -144,6 +147,7 @@ const ResumeUpload = () => {
 
       <br/>
       <br/>
+      {loading && <LoadingSpinner/>} 
       <form onSubmit={handleJobDescription}>
       <label>
         Job Description

@@ -4,6 +4,7 @@ import Login from './Login';
 import Register from './Register';
 import Dashboard from './Dashboard';
 import ResumeUpload from './ResumeUpload_Job';
+import CurrentData from './CurrentData';
 
 function App() {
   // Track whether the user is logged in
@@ -36,6 +37,9 @@ function App() {
                 <li>
                   <Link to="/resume-upload">Resume Upload</Link>
                 </li>
+                <li>
+                  <Link to='/current-data'>Data</Link>
+                </li>
               </>
             ) : (
               <>
@@ -58,11 +62,13 @@ function App() {
           <Route path="/dashboard"
             element={isLoggedIn ? <Dashboard /> : <Navigate to="/login" />}
           />
-          {isLoggedIn ? (
-            <Route path="/resume-upload" element={<ResumeUpload />} />
-          ) : (
-            <Route path="/resume-upload" element={<Navigate to="/login" />} />
-          )}
+          <Route path="/resume-upload"
+            element={isLoggedIn ? <ResumeUpload /> : <Navigate to="/login" />}
+          />
+          <Route path="/current-data"
+            element={isLoggedIn ? <CurrentData /> : <Navigate to="/login" />}
+          />
+          
         </Routes>
       </div>
     </BrowserRouter>
