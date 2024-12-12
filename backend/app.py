@@ -4,9 +4,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field
 from passlib.context import CryptContext
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 import jwt
 import os
+from collections import Counter
+import string
 from PyPDF2 import PdfReader
 from datetime import datetime, timedelta, timezone
 import fitz
@@ -315,4 +317,69 @@ async def analyze_data(input_data: Input):
         raise HTTPException(status_code=500, detail=f"Error failed to provide results: {e}")
     
     return Output(fit_score=fit_score, feedback=feedback)
+
+# Helper function to tokenize and normalize text
+def tokenize_and_normalize(text: str) -> List[str]:
+    text = text.lower()
+    text = text.translate(str.maketrans("", "", string.punctuation))
+    tokens = text.split()
+    return tokens
+
+# Task 21: Algorithm to Compare Resume and Job Description
+def calculate_fit_score(resume_text: str, job_description: str) -> Dict:
+    if not resume_text or not job_description:
+        raise HTTPException(status_code=400, detail="Resume text or job description cannot be empty.")
+
+    # Tokenize and normalize inputs
+    resume_tokens = tokenize_and_normalize(resume_text)
+    job_tokens = tokenize_and_normalize(job_description)
+
+    # Count keywords in both texts
+    resume_counter = Counter(resume_tokens)
+    job_counter = Counter(job_tokens)
+
+    # Find matched keywords
+    matched_keywords = set(resume_tokens) & set(job_tokens)
+    matched_count = sum(job_counter[keyword] for keyword in matched_keywords)
+
+    # Total keywords in the job description
+    total_keywords = sum(job_counter.values())
+
+    # Calculate fit score
+    fit_score = (matched_count / total_keywords) * 100 if total_keywords > 0 else 0
+
+    # Generate feedback for unmatched keywords
+    unmatched_keywords = set(job_tokens) - set(resume_tokens)
+    feedback = [f"Consider adding '{keyword}' to your resume." for keyword in unmatched_keywords]
+
+    # Return the result with matched keywords and feedback
+    return {
+        "fit_score": round(fit_score,2),
+        "matched_keywords": list(matched_keywords),
+        "unmatched_keywords": list(unmatched_keywords),
+        "feedback": feedback
+    }
+
+class Output(BaseModel):
+    fit_score: int = Field(..., ge=0, le=100, description="Resume-job fit percentage.")
+    matched_keywords: List[str] = Field(..., description="Keywords matched between resume and job description.")
+    unmatched_keywords: List[str] = Field(..., description="Keywords not found in the resume.")
+    feedback: List[str] = Field(..., description="Suggestions for improvement.")
+
+
+@app.post("/api/calculate-fit")
+async def calculate_fit(input_data: Input):
+    try:
+        result = calculate_fit_score(input_data.resume_text, input_data.job_description)
+        return Output(
+            fit_score=int(result["fit_score"]),
+            matched_keywords=result["matched_keywords"],
+            unmatched_keywords=result["unmatched_keywords"],
+            feedback=result["feedback"]
+        )
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Unexpected error occurred: {e}")
+
 
