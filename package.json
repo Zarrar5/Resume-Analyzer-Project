@@ -3,7 +3,6 @@
     "vite": "^5.4.11"
   },
   "dependencies": {
-    "jspdf": "^2.5.2",
     "react-loader-spinner": "^6.1.6"
   }
 }
