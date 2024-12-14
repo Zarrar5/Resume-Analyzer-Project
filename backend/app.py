@@ -20,6 +20,8 @@ from docx import Document
 from io import BytesIO
 from collections import Counter
 import string
+import nltk
+from nltk.tokenize import word_tokenize
 # Initialize app
 app = FastAPI()
 # CORS Configuration
@@ -416,3 +418,92 @@ async def calculate_fit(input_data: Input):
         raise e
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Unexpected error occurred: {e}")
+
+
+#Task 23
+
+# Function to clean and tokenize the text
+def tokenize_text(text):
+    # Tokenize and convert to lowercase
+    tokens = word_tokenize(text.lower())
+    # Remove non-alphabetic tokens
+    tokens = [word for word in tokens if word.isalpha()]
+    return set(tokens)
+
+# Function to generate more expressive feedback based on the keyword
+def generate_feedback(resume_text, job_description_text):
+    # Tokenize both resume and job description
+    resume_tokens = tokenize_text(resume_text)
+    job_description_tokens = tokenize_text(job_description_text)
+    
+    # Identify missing keywords (those in job description but not in resume)
+    missing_keywords = job_description_tokens - resume_tokens
+    
+    # Prepare actionable suggestions with more detail
+    suggestions = []
+    
+    for keyword in missing_keywords:
+        if keyword in ["aws", "python", "java", "docker"]:
+            suggestions.append(f"Include experience with {keyword.upper()} services or tools.")
+        elif keyword in ["rest", "api", "web", "cloud"]:
+            suggestions.append(f"Add projects demonstrating {keyword.upper()} development.")
+        elif keyword in ["project management", "leadership", "teamwork"]:
+            suggestions.append(f"Highlight experience in {keyword.upper()}.")
+        else:
+            suggestions.append(f"Consider adding experience with {keyword.upper()}.")
+    
+    # If no missing keywords, indicate it's a strong match
+    if not missing_keywords:
+        return {"message": "No missing skills identified."}
+    
+    # Generate feedback
+    feedback = {
+        "missing_keywords": list(missing_keywords),
+        "suggestions": suggestions
+    }
+    
+    return feedback
+
+# Generate feedback
+feedback = generate_feedback(resume_text, job_description_text)
+
+# Task 24: /api/fit-score endpoint for returning fit score and feedback
+class Input(BaseModel):
+    resume_text: str = Field(..., max_length=10000, description="The content of the user's resume...")
+    job_description: str = Field(..., max_length=10000, description="The content of the job description...")
+
+class Output(BaseModel):
+    fit_score: int = Field(..., ge=0, le=100, description="Resume-job fit percentage.")
+    feedback: List[str] = Field(..., description="Suggestions for improvement.")
+
+class ErrorResponse(BaseModel):
+    error: str
+
+@app.post("/api/fit-score", response_model=Output, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
+async def fit_score_endpoint(input_data: Input):
+    # Validate inputs
+    if not input_data.resume_text or not input_data.job_description:
+        raise HTTPException(status_code=400, detail="Both resume_text and job_description are required.")
+    
+    if len(input_data.resume_text) > 10000 or len(input_data.job_description) > 10000:
+        raise HTTPException(status_code=400, detail="Input exceeds character limit (10,000 characters).")
+    
+    # Fit score calculation
+    resume_tokens = tokenize_and_normalize(input_data.resume_text)
+    job_tokens = tokenize_and_normalize(input_data.job_description)
+    
+    # Count matched keywords
+    resume_counter = Counter(resume_tokens)
+    job_counter = Counter(job_tokens)
+    
+    matched_keywords = set(resume_tokens) & set(job_tokens)
+    matched_count = sum(job_counter[keyword] for keyword in matched_keywords)
+    
+    total_keywords = sum(job_counter.values())
+    fit_score = (matched_count / total_keywords) * 100 if total_keywords > 0 else 0
+    
+    # Generate feedback
+    feedback = generate_feedback(input_data.resume_text, input_data.job_description)
+    
+    return Output(fit_score=round(fit_score, 2), feedback=feedback)
+    
