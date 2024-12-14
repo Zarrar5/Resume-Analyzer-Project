@@ -1,13 +1,14 @@
+/* Spinner Styles (Existing) */
 .loading-spinner {
   display: flex;
   justify-content: center;
   align-items: center;
-  position: fixed; /* Ensures it's positioned relative to the viewport */
+  position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(255, 255, 255, 0.8); /* Optional: Add a light overlay */
+  background-color: rgba(255, 255, 255, 0.8);
 }
 
 .spinner {
@@ -26,4 +27,61 @@
   100% {
     transform: rotate(360deg);
   }
+}
+
+/* Dashboard Styles */
+.dashboard-container {
+  margin: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.dashboard-title {
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.dashboard-section {
+  margin-bottom: 20px;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 20px;
+  background-color: #f3f3f3;
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+
+.progress-bar {
+  height: 20px;
+  background-color: #4caf50;
+  transition: width 0.3s ease;
+}
+
+.list {
+  list-style-type: disc;
+  margin: 0;
+  padding: 0;
+}
+
+.list-item {
+  margin: 5px 0;
+  color: #555;
+}
+
+/* Button Styles */
+.download-btn {
+  margin-top: 20px;
+  padding: 10px 15px;
+  font-size: 16px;
+  color: white;
+  background-color: #76c7c0;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.download-btn:hover {
+  background-color: #5fa29d;
 }
