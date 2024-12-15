@@ -124,3 +124,12 @@ nav {
   background-color: #4caf50;
   transition: width 0.3s ease;
 }
+
+.dashboard-container{
+  background-color: rgb(212, 201, 185);
+}
+
+.feedback{
+  display: block;
+  color: red;
+}

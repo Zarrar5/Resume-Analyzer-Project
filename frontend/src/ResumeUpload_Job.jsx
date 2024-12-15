@@ -155,7 +155,7 @@ const ResumeUpload = () => {
 
       <button type="submit">Submit Resume</button>
       </form>
-    {/*
+    
       {resumeFile && preview && isPDF &&(
           <div>
               <h3>File Preview:</h3>
@@ -182,7 +182,7 @@ const ResumeUpload = () => {
           </div>
         </div>
       )}
-*/}
+
       <br/>
       <br/>
       {loading && <LoadingSpinner/>} 
@@ -202,6 +202,7 @@ const ResumeUpload = () => {
       <p>Character Count: {charCount}/5000</p>
 
       <button type='submit'>Submit Job Description</button>
+      <br></br>
       <button onClick={handleClick}>Clear</button>
       </form>
       <p className="message">{message}</p>

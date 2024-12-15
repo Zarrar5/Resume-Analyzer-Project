@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import "./App.css";
+import jsPDF from "jspdf";
 
 const Dashboard = () => {
   const token = localStorage.getItem("access_token");
@@ -15,11 +16,13 @@ const Dashboard = () => {
   const [fitScore, setFitScore] = useState(null);
   const [matchedSkills, setMatchedSkills] = useState([]);
   const [unmatchedSkills, setUnmatchedSkills] = useState([]);
-  const [improvementSuggestions, setImprovementSuggestions] = useState([]);
+  const [improvementSuggestions, setImprovementSuggestions] = useState({skills: [], experience: []});
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedCategory, setSelectedCategory]= useState("all");
+  const [filteredFeedback, setFilteredFeedback]= useState([]);
 
   // Fetch data from the backend (current analysis data)
   useEffect(() => {
@@ -45,8 +48,8 @@ const Dashboard = () => {
         setResumeText(data.resume);
         setJobDescription(data.job_description);
         //Debugging
-      console.log("Fetched Resume Text:", data.resume);
-      console.log("Fetched Job Description:", data.job_description);
+        //console.log("Fetched Resume Text:", data.resume);
+        //console.log("Fetched Job Description:", data.job_description);
       } catch (error) {
         console.error("Error fetching current data:", error);
         setError(error.message);
@@ -87,6 +90,16 @@ const Dashboard = () => {
           setMatchedSkills(data.matched_keywords); // Matched skills from backend
           setUnmatchedSkills(data.unmatched_keywords); // Unmatched skills from backend
           setImprovementSuggestions(data.feedback); // Improvement suggestions from backend
+
+          const skills= improvementSuggestions.skills;
+          const experience= improvementSuggestions.experience;
+          console.log("Data Feedback: ", data.feedback);
+          console.log(improvementSuggestions);
+          console.log(skills);
+          console.log(experience);
+          setFilteredFeedback(skills.concat(experience));
+          console.log("Feedback: ", filteredFeedback);
+
         } catch (error) {
           console.error("Error fetching analysis data:", error);
           setError(error.message);
@@ -108,6 +121,51 @@ const Dashboard = () => {
   if (error) {
     return <p>Error: {error}</p>;
   }
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.text("Resume Analysis Report", 10, 10);
+
+    doc.setFontSize(12);
+    doc.text(`Fit Score: ${fitScore !== null ? `${fitScore}%` : "N/A"}`, 10, 30);
+
+    doc.setFontSize(14);
+    doc.text("Matched Keywords:", 10, 50);
+    matchedSkills.forEach((skill, index) => {
+      doc.text(`- ${skill}`, 10, 60 + index * 10);
+    });
+
+    doc.text("Improvement Suggestions:", 10, 80 + matchedSkills.length * 10);
+    feedback.forEach((item, index) => {
+      doc.text(`- ${item.text}`, 10, 90 + matchedSkills.length * 10 + index * 10);
+    });
+
+    doc.save("Resume_Analysis_Report.pdf");
+  };
+
+  const changeFeedback= (e) =>{
+    e.preventDefault();
+    setSelectedCategory(e.target.value);
+  };
+
+  const renderFeedback= () => {
+    let categoryFeedback= [];
+
+    if (selectedCategory == 'skills'){
+      categoryFeedback= improvementSuggestions.skills;
+    }
+    else if (selectedCategory == 'experience'){
+      categoryFeedback= improvementSuggestions.experience;
+    }
+    else{
+      const skills= improvementSuggestions.skills;
+      const experience= improvementSuggestions.experience;
+
+      categoryFeedback= skills.concat(experience);
+    }
+    return categoryFeedback.map((item, index) => <li className= "feedback" key={index}>{item}</li>);
+  };
 
   return (
     <div className="dashboard-container">
@@ -155,7 +213,7 @@ const Dashboard = () => {
       </section>
 
       {/* Improvement Suggestions */}
-      <section className="dashboard-section">
+      {/* <section className="dashboard-section">
         <h2>Improvement Suggestions</h2>
         <ul className="list">
           {improvementSuggestions.length > 0 ? (
@@ -168,7 +226,34 @@ const Dashboard = () => {
             <li>No suggestions available</li>
           )}
         </ul>
+      </section> */}
+
+      <section className="dashboard-section">
+            <h2>Improvement Suggestions</h2>
+            <label htmlFor="filter">Filter Feedback by Category: </label>
+            <select
+              id="filter"
+              value={selectedCategory}
+              onChange={changeFeedback}
+            >
+              <option value="all">All</option>
+              <option value="skills">Skills</option>
+              <option value="experience">Experience</option>
+            </select>
+            <ul>
+              {/* {filteredFeedback.map((item, index) => (
+                <li key={index} className="list-item">
+                  {item}
+                </li>
+
+              ))} */}
+              {renderFeedback()}
+            </ul>
       </section>
+
+      <button onClick={generatePDF} className="download-btn">
+            Download PDF Report
+      </button>
     </div>
   );
 };

@@ -20,6 +20,8 @@ from docx import Document
 from io import BytesIO
 from collections import Counter
 import string
+from transformers import pipeline
+
 # Initialize app
 app = FastAPI()
 # CORS Configuration
@@ -310,55 +312,138 @@ class ErrorResponse(BaseModel):
 
    
 #Task 20
-@app.post("/api/analyze",response_model=Output,
-    responses={
-        400: {"model": ErrorResponse},
-        500: {"model": ErrorResponse}
-    }
-)
-async def analyze_data(input_data: Input):
-    headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
-    data = {
-        "inputs": {
-            "resume": input_data.resume_text,
-            "job_description": input_data.job_description
-        }
-    }
+# @app.post("/api/analyze",response_model=Output,
+#     responses={
+#         400: {"model": ErrorResponse},
+#         500: {"model": ErrorResponse}
+#     }
+# )
+# async def analyze_data(input_data: Input):
+#     headers = {"Authorization": f"Bearer {HUGGINGFACE_API_KEY}"}
+#     data = {
+#         "inputs": {
+#             "resume": input_data.resume_text,
+#             "job_description": input_data.job_description
+#         }
+#     }
     
-    try:
-        response = requests.post(
-            "https://api-inference.huggingface.co/models/model",
-            headers=headers,
-            json=data
-        )
-        response.raise_for_status()
-    except requests.RequestException as e:
-        raise HTTPException(status_code=500, detail=f"Error connecting to NLP API: {e}")
+#     try:
+#         response = requests.post(
+#             "https://api-inference.huggingface.co/models/model",
+#             headers=headers,
+#             json=data
+#         )
+#         response.raise_for_status()
+#     except requests.RequestException as e:
+#         raise HTTPException(status_code=500, detail=f"Error connecting to NLP API: {e}")
 
-    api_response = response.json()
+#     api_response = response.json()
     
-    if "results" not in api_response or not api_response["results"]:
-        raise HTTPException(status_code=500, detail="Malformed API response.")
+#     if "results" not in api_response or not api_response["results"]:
+#         raise HTTPException(status_code=500, detail="Malformed API response.")
     
-    result = api_response["results"][0]
+#     result = api_response["results"][0]
     
-    try:
-        fit_score = int(result["fit_score"] * 100) 
-        feedback = result.get("feedback", [])
+#     try:
+#         fit_score = int(result["fit_score"] * 100) 
+#         feedback = result.get("feedback", [])
 
-    except (KeyError, TypeError) as e:
-        raise HTTPException(status_code=500, detail=f"Error failed to provide results: {e}")
+#     except (KeyError, TypeError) as e:
+#         raise HTTPException(status_code=500, detail=f"Error failed to provide results: {e}")
     
-    return Output(fit_score=fit_score, feedback=feedback)
+#     return Output(fit_score=fit_score, feedback=feedback)
 
-
+#Alphabetically order it for easier visualization
+filler_words= ["a", "about", "after", "all", "also", "although", "an", "and", "any", "anyone", "are", "as", "at", 
+               "be", "before", "been", "being", "both", "but", "by", "because", 
+               "can", "could",
+               "did", "do", "does", "doing", 
+               "each", "either", "else", "enough", "especially", "everyone", 
+               "few", "for", "from", 
+               "had", "has", "have", "having", "he", "here", "how", 
+               "i", "ideal", "if", "in", "including", "it", 
+               "just", 
+               "like",
+               "many", "more", "most", "much", 
+               "neither", "none", "nothing", 
+               "of", "on", "once", "only", "or", "other", "our", "ours", "ourself", "ourselves", 
+               "problem", 
+               "require", "required",
+               "should", "since", "skill", "skills", "so", "still", 
+               "that", "the", "these", "they", "this", "those", "to", "too", 
+               "unless", "until", 
+               "we", "what", "when", "where", "which", "whenever", "whatever", "whichever", "while", "who", "whom", "whose", "will", "with", "within", "would",
+               "year", "you", "your", "you're", "yourself", "yourself"]
 
 # Helper function to tokenize and normalize text
 def tokenize_and_normalize(text: str) -> List[str]:
     text = text.lower()
     text = text.translate(str.maketrans("", "", string.punctuation))
     tokens = text.split()
-    return tokens
+    final= set(tokens)- set(filler_words)
+    return final
+
+'''
+Job Description: Job Title: Software Engineer
+
+Job Description: We are seeking a passionate and driven Software Engineer to join our growing team. The ideal candidate should be proficient in multiple programming languages, with a strong background in cloud technologies, and a deep understanding of system architecture. You will work closely with cross-functional teams to design, develop, and deploy innovative software solutions.
+
+Responsibilities:
+
+Design, develop, and maintain software applications and systems.
+Collaborate with product managers and designers to create user-friendly software features.
+Write clean, efficient, and scalable code.
+Participate in code reviews and contribute to team knowledge sharing.
+Troubleshoot and resolve software issues and bugs.
+Stay up to date with the latest industry trends and technologies.
+Required Skills:
+
+Strong proficiency in Java, Python, and JavaScript.
+Experience with cloud platforms such as AWS or Azure.
+Familiarity with containerization technologies like Docker and Kubernetes.
+Solid understanding of object-oriented programming principles.
+Strong problem-solving and debugging skills.
+Excellent communication skills and ability to work in a team environment.
+Preferred Qualifications:
+
+Experience with microservices architecture.
+Familiarity with CI/CD pipelines.
+Knowledge of database management systems (SQL and NoSQL).
+Bachelor’s degree in Computer Science, Engineering, or a related field.
+Benefits:
+
+Competitive salary and benefits package.
+Flexible work hours and remote work options.
+Opportunities for professional development and career growth.
+Collaborative and inclusive work environment.
+'''
+# Load zero-shot classification pipeline
+classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+# Labels/categories
+labels = ["Hard Skill", "Soft Skill", "None"]
+
+def classify(labels, keywords):
+    # Categorize each keyword
+    feedback= {"skills": [], "experience": []}
+    
+    for keyword in keywords:
+        sentence = f"In terms of a resume this keyword: {keyword} most likely belong to "
+        result = classifier(sentence, labels)
+        #print(f"Keyword: {keyword}")
+        #print(f"Prediction: {result['labels'][0]} (Score: {result['scores'][0]:.2f})")
+        if result['scores'][0] >=0.45:
+            if result['labels'][0] == "Hard Skill":
+                string= f'Consider adding experience in {keyword}'
+                feedback['experience'].append(string)
+            elif result['labels'][0] == "Soft Skill":
+                string= f'Consider adding skill in {keyword}'
+                feedback['skills'].append(string)
+    #print("skills ", feedback['skills'])
+    #print("experience ", feedback['experience'])
+
+    return feedback
+
+
 
 # Task 21: Algorithm to Compare Resume and Job Description
 def calculate_fit_score(resume_text: str, job_description: str) -> Dict:
@@ -385,7 +470,9 @@ def calculate_fit_score(resume_text: str, job_description: str) -> Dict:
 
     # Generate feedback for unmatched keywords
     unmatched_keywords = set(job_tokens) - set(resume_tokens)
-    feedback = [f"Consider adding '{keyword}' to your resume." for keyword in unmatched_keywords]
+    feedback= classify(labels, unmatched_keywords)
+
+    #feedback = [f"Consider adding '{keyword}' to your resume." for keyword in unmatched_keywords]
 
     # Return the result with matched keywords and feedback
     return {
@@ -399,11 +486,13 @@ class Output(BaseModel):
     fit_score: int = Field(..., ge=0, le=100, description="Resume-job fit percentage.")
     matched_keywords: List[str] = Field(..., description="Keywords matched between resume and job description.")
     unmatched_keywords: List[str] = Field(..., description="Keywords not found in the resume.")
-    feedback: List[str] = Field(..., description="Suggestions for improvement.")
+    feedback: Dict[str, list[str]] = Field(..., description="Suggestions for improvement.")
 
 
+# Example usage
 @app.post("/api/calculate-fit")
 async def calculate_fit(input_data: Input):
+        
     try:
         result = calculate_fit_score(input_data.resume_text, input_data.job_description)
         return Output(
